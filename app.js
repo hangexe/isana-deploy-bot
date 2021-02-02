@@ -6,7 +6,7 @@ var bodyParser = require("body-parser");
 var app = express();
 
 app.use(logger("dev"));
-app.use(bodyParser.json({ type: "application/*+json" }));
+app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 app.post("/api/deploy-isana-android", (req, res, next) => {
