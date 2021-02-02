@@ -11,13 +11,9 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.post("/api/deploy-isana-android", (req, res, next) => {
   const { body } = req;
-  console.log(req.params);
-
-  // const {challenge} = req.params;
-
-  // logger
+  console.log({body})
   res.json({
-    message: "ok",
+    message: "success",
     body
   });
 });
