@@ -18,6 +18,7 @@ app.post("/api/deploy-isana-android", (req, res, next) => {
   // logger
   res.json({
     message: "ok",
+    body
   });
 });
 
