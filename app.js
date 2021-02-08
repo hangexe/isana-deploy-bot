@@ -23,7 +23,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   const curlReponse = async () => {
     try {
       let jsonRes = await fetch("https://jsonplaceholder.typicode.com/users");
-      return jsonRes.json();
+      return await jsonRes.json();
     } catch (err) {
       console.log(err);
     }
