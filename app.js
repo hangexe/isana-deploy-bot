@@ -22,7 +22,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   console.log({ body });
 
   try {
-    const { stdout, stderr } = await exe(
+    const { stdout, stderr } = await exec(
       "curl -i -u nguyenxuantien3105:b9cb102fd03a6b743d9a34822bdafce50898b25a https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master"
     );
     console.log({ stdout, stderr });
