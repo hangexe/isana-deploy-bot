@@ -2,6 +2,7 @@ var express = require("express");
 var path = require("path");
 var logger = require("morgan");
 var bodyParser = require("body-parser");
+var fetch = require("node-fetch");
 
 var app = express();
 
@@ -15,9 +16,21 @@ app.get("/", (req, res, next) => {
   );
 });
 
-app.post("/api/deploy-isana-android", (req, res, next) => {
+app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
   console.log({ body });
+
+  const curlReponse = async () => {
+    try {
+      let jsonRes = await fetch("https://jsonplaceholder.typicode.com/users");
+      return jsonRes.json();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  console.log(curlReponse);
+
   res.json({
     message: "success",
     body,
