@@ -11,7 +11,7 @@ app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 app.get("/", (req,res,next) => {
-  json.end(`<h1 style="margin: 200px auto">Hello, welcome to Slackbot of Isana team</h1>`)
+  res.end(`<h1 style="margin: 200px auto">Hello, welcome to Slackbot of Isana team</h1>`)
 })
 
 app.post("/api/deploy-isana-android", (req, res, next) => {
