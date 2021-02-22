@@ -17,20 +17,22 @@ app.get("/", (req, res, next) => {
   );
 });
 
+const GIT_ACCOUNT = 'nguyenxuantien3105:e08afe815abb26a482eb9e58e68fe6f7bea48a1e'
+const REPOSITY = 'https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master'
 
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
-  console.log({ body }); 
-  const account = 'nguyenxuantien3105:e08afe815abb26a482eb9e58e68fe6f7bea48a1e'
-  const reposity = 'https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master'
-  const curl = `curl -i -u ${account} -H "Accept: application/vnd.github.v3+json" ${reposity}`
+  const curl = `curl -u ${GIT_ACCOUNT} -H "Accept: application/vnd.github.v3+json" ${REPOSITY}`
   try {
-    const { stdout, stderr } = await exec(curl);
-    console.log(JSON.parse(stdout) || "")
-    // console.log({stderr });
+    const { stdout } = await exec(curl);
+    const SHA  = JSON.parse(stdout || '')['commit'].sha || "";
+
+    const newBranchInfo  = await createGitBranch(`test/${Date.now()}`, SHA);
+    console.log({newBranchInfo});
+
   } catch (err) {
-    console.log(err);
+    console.error(err)
   }
 
   res.json({
@@ -38,5 +40,29 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     body,
   });
 });
+
+
+/**
+ * 
+ * @param {*} newBranchName new branch's name, example test/ABC
+ * @param {*} sha 
+ * @return object contains info of created branch
+ */
+const createGitBranch = async (newBranchName = '', sha = '') => {
+  if (!newBranchName || !sha ) {
+    throw 'branch name or sha is required'
+  }
+
+  try {
+    const apiRefs = 'https://api.github.com/repos/Lighthouse-Inc/isana-android/git/refs'
+    const curl = `curl -u ${GIT_ACCOUNT} -X POST -H "Accept: application/vnd.github.v3+json" ${apiRefs} -d '{"ref":"refs/heads/${newBranchName}","sha":"${sha}"}'`
+    const {stdout} = await exec(curl);
+
+    return JSON.parse(stdout);
+  } catch(err) {
+    console.error(err)
+    throw err;
+  }
+}
 
 module.exports = app;
