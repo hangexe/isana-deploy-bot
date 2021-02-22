@@ -22,7 +22,7 @@ app.get("/", (req, res, next) => {
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
   console.log({ body }); 
-  const account = 'nguyenxuantien3105:b9cb102fd03a6b743d9a34822bdafce50898b25a'
+  const account = 'nguyenxuantien3105:e08afe815abb26a482eb9e58e68fe6f7bea48a1e'
   const reposity = 'https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master'
   const curl = `curl -i -u ${account} -H "Accept: application/vnd.github.v3+json" ${reposity}`
   try {
