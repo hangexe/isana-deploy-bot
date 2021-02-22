@@ -17,15 +17,18 @@ app.get("/", (req, res, next) => {
   );
 });
 
+
+// POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
-  console.log({ body });
-
+  console.log({ body }); 
+  const account = 'nguyenxuantien3105:b9cb102fd03a6b743d9a34822bdafce50898b25a'
+  const reposity = 'https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master'
+  const curl = `curl -i -u ${account} -H "Accept: application/vnd.github.v3+json" ${reposity}`
   try {
-    const { stdout, stderr } = await exec(
-      "curl -i -u nguyenxuantien3105:b9cb102fd03a6b743d9a34822bdafce50898b25a https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master"
-    );
-    console.log({ stdout, stderr });
+    const { stdout, stderr } = await exec(curl);
+    console.log(stdout)
+    // console.log({stderr });
   } catch (err) {
     console.log(err);
   }
