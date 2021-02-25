@@ -19,8 +19,10 @@ const REPOSITY =
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
-  const { text } = body;
-  console.log({ body });
+  const {
+    event: { text },
+  } = body;
+  console.log({ text });
   const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${REPOSITY}`;
   try {
     const { stdout } = await exec(curl);
