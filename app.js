@@ -23,7 +23,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     event: { text },
   } = body;
   console.log( typeof body.event.text);
-  console.log( body.event.text);
+  console.log( text.toString());
   const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${REPOSITY}`;
   try {
     const { stdout } = await exec(curl);
