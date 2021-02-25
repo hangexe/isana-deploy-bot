@@ -19,8 +19,8 @@ const REPOSITY =
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
-  const {text } = body;
-  console.log({body})
+  const { text } = body;
+  console.log({ body });
   const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${REPOSITY}`;
   try {
     const { stdout } = await exec(curl);
@@ -30,6 +30,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     // console.log({newBranchInfo});
 
     const { versionCode, versionName } = await getCurrentVersion();
+    let version = text.trim().split(" ")[text.length - 1];
     increaseVersion({ versionCode, versionName });
   } catch (err) {
     console.error(err);
@@ -89,18 +90,18 @@ const increaseVersion = ({
   versionName,
   versioning = "patch",
 }) => {
-  let [major, minor, patch ] = versionName.split(".");
+  let [major, minor, patch] = versionName.split(".");
   console.log({ patch, minor, major });
   switch (versioning) {
     case "patch":
-      patch = +patch+1;
+      patch = +patch + 1;
       break;
     case "minor":
-      minor = +minor+1;
+      minor = +minor + 1;
       patch = 0;
       break;
     case "major":
-      major = +major+1;
+      major = +major + 1;
       minor = 0;
       patch = 0;
       break;
@@ -108,8 +109,8 @@ const increaseVersion = ({
       patch = +patch++;
       break;
   }
-  versionName = `${major}.${minor}.${patch}`
-  console.log({versionName})
+  versionName = `${major}.${minor}.${patch}`;
+  console.log({ versionName });
   // console.log({ versionCode, versionName, versioning });
 };
 
