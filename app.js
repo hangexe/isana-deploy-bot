@@ -33,7 +33,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     // console.log({newBranchInfo});
 
     const { versionCode, versionName } = await getCurrentVersion();
-    // let version = text.trim().split(" ")[text.length - 1];
+    let version = text.trim().split(" ")[text.length - 1];
     increaseVersion({ versionCode, versionName });
   } catch (err) {
     console.error(err);
