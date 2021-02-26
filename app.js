@@ -22,8 +22,10 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   const {
     event: { text },
   } = body;
-  console.log( typeof body.event.text);
-  console.log( text.toString());
+  console.log( text.toString().split(' '));
+  versioning = text.toString().split(' ');
+  versioning = versioning[versioning.length - 1];
+  console.log(versioning)
   const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${REPOSITY}`;
   try {
     const { stdout } = await exec(curl);
@@ -113,8 +115,8 @@ const increaseVersion = ({
       break;
   }
   versionName = `${major}.${minor}.${patch}`;
-  console.log({ versionName });
-  // console.log({ versionCode, versionName, versioning });
+  versionCode = +versionCode + 1;
+  console.log({ versionCode, versionName });
 };
 
 module.exports = app;
