@@ -23,11 +23,11 @@ const ANDROID_RELEASE_MINOR = "android release minor";
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
-  
+
 　// Check for 1st time verify the API endpoint only
   const challenge = body.challenge
   if (challenge) {
-    res.status(200).json({challenge})
+    return res.status(200).json({challenge})
   }
 
   const text = body?.event?.text || "";
