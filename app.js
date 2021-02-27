@@ -25,9 +25,9 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
   console.log({ body });
 
-  const {
-    event: { text },
-  } = body;
+  // const {
+  //   event: { text },
+  // } = body;
   const text = body?.event?.text || "";
   versioning = text.toString().split(" ");
   versioning = versioning[versioning.length - 1];
