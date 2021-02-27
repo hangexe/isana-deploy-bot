@@ -4,8 +4,6 @@ var bodyParser = require("body-parser");
 var util = require("util");
 var exec = util.promisify(require("child_process").exec);
 var { parse } = require("envfile");
-const { version } = require("os");
-const { compile } = require("morgan");
 
 var app = express();
 
@@ -25,13 +23,19 @@ const ANDROID_RELEASE_MINOR = "android release minor";
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
+  console.log({ body });
+
   const {
     event: { text },
   } = body;
+  const text = body?.event?.text || "";
   versioning = text.toString().split(" ");
   versioning = versioning[versioning.length - 1];
 
   try {
+    if (!text) {
+      return;
+    }
     // STEP 1: get currcent version and up verison, get new SHA
     const { currentVersion, sha } = await getCurrentVersion();
 
@@ -62,7 +66,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     // STEP 5: crate tag
     await createReleaseTag(branch, branchCreationSHA);
 
-    res.json({
+    return res.json({
       ok: true,
       newVersion: { versionCode, versionName },
     });
@@ -70,6 +74,8 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     console.error(err);
     return res.status(404).json({ message: err.message });
   }
+
+  return res.status(200).json({ ...body });
 });
 
 const decodeBase64 = (base64str) => {
@@ -81,13 +87,12 @@ const encodeBase64 = (data) => {
   return new Buffer.from(data.toString()).toString("base64");
 };
 
-
 /**
- * 
- * @param {*} versionCode 
- * @param {*} versionName 
- * @param {*} base64Content 
- * @param {*} currentSha 
+ *
+ * @param {*} versionCode
+ * @param {*} versionName
+ * @param {*} base64Content
+ * @param {*} currentSha
  */
 const updateVersionFileContent = async (
   versionCode,
@@ -162,7 +167,7 @@ const getCurrentVersion = async () => {
     const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${apiRefs}`;
     const { stdout } = await exec(curl);
     const { content, sha } = JSON.parse(stdout);
-    console.log('file', content)
+    console.log("file", content);
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
