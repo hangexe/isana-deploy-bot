@@ -5,6 +5,7 @@ var util = require("util");
 var exec = util.promisify(require("child_process").exec);
 var { parse } = require("envfile");
 const { version } = require("os");
+const { compile } = require("morgan");
 
 var app = express();
 
@@ -12,7 +13,7 @@ app.use(logger("dev"));
 app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
-const GIT_TOKEN = "nguyenxuantien3105:e08afe815abb26a482eb9e58e68fe6f7bea48a1e";
+const GIT_TOKEN = "hangexe:46a98924dc030d013a25db94095e65abcb631dfc";
 const REPOSITY =
   "https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master";
 
@@ -62,7 +63,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     await createReleaseTag(branch, branchCreationSHA);
 
     res.json({
-      message: "success",
+      ok: true,
       newVersion: { versionCode, versionName },
     });
   } catch (err) {
@@ -71,6 +72,23 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   }
 });
 
+const decodeBase64 = (base64str) => {
+  const data = new Buffer.from(base64str, "base64").toString("ascii");
+  return parse(data);
+};
+
+const encodeBase64 = (data) => {
+  return new Buffer.from(data.toString()).toString("base64");
+};
+
+
+/**
+ * 
+ * @param {*} versionCode 
+ * @param {*} versionName 
+ * @param {*} base64Content 
+ * @param {*} currentSha 
+ */
 const updateVersionFileContent = async (
   versionCode,
   versionName,
@@ -144,6 +162,7 @@ const getCurrentVersion = async () => {
     const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${apiRefs}`;
     const { stdout } = await exec(curl);
     const { content, sha } = JSON.parse(stdout);
+    console.log('file', content)
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
@@ -183,15 +202,6 @@ const increaseVersion = (command, versionCode, versionName) => {
   versionName = `${major}.${minor}.${patch}`;
   versionCode = +versionCode + 1;
   return { versionCode, versionName };
-};
-
-const decodeBase64 = (base64str) => {
-  const data = new Buffer.from(base64str, "base64").toString("ascii");
-  return parse(data);
-};
-
-const encodeBase64 = (data) => {
-  return new Buffer.from(data.toString()).toString("base64");
 };
 
 module.exports = app;
