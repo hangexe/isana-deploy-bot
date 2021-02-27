@@ -22,12 +22,11 @@ const ANDROID_RELEASE_MINOR = "android release minor";
 
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
-  const { body } = req;
+  const { body } = req; // Check for 1st time verify the API endpoint only
 
-　// Check for 1st time verify the API endpoint only
-  const challenge = body.challenge
+  const challenge = body.challenge;
   if (challenge) {
-    return res.status(200).json({challenge})
+    return res.status(200).json({ challenge });
   }
 
   const text = body?.event?.text || "";
@@ -35,7 +34,6 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   versioning = versioning[versioning.length - 1];
 
   try {
-
     // STEP 1: get currcent version and up verison, get new SHA
     const { currentVersion, sha } = await getCurrentVersion();
 
@@ -66,15 +64,13 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     // STEP 5: crate tag
     await createReleaseTag(branch, branchCreationSHA);
 
-    return res.json({
-      ok: true,
-      newVersion: { versionCode, versionName },
-    });
+    await dispatchMessageToSlack("release success");
+    return res.end();
   } catch (err) {
     console.error(err);
-    return res.status(404).json({ message: err.message });
+    await dispatchMessageToSlack(err.message || "Error");
+    return res.end();
   }
-
 });
 
 const decodeBase64 = (base64str) => {
@@ -206,6 +202,15 @@ const increaseVersion = (command, versionCode, versionName) => {
   versionName = `${major}.${minor}.${patch}`;
   versionCode = +versionCode + 1;
   return { versionCode, versionName };
+};
+
+const dispatchMessageToSlack = async (message) => {
+  const slackHookWithToken = `https://hooks.slack.com/services/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`;
+  const curl = `curl -X POST -H 'Content-type: application/json' --data '{"text":"${message}"}' ${slackHookWithToken}`;
+
+  const { stdout } = await exec(curl);
+  console.log({ stdout });
+  return true;
 };
 
 module.exports = app;
