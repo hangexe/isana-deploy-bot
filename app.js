@@ -65,11 +65,11 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     await createReleaseTag(branch, branchCreationSHA);
 
     await dispatchMessageToSlack("release success");
-    return res.end();
+    return res.status(200).end();
   } catch (err) {
     console.error(err);
     await dispatchMessageToSlack(err.message || "Error");
-    return res.end();
+    return res.status(400).end();
   }
 });
 
