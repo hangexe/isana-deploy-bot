@@ -67,7 +67,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     // STEP 5: crate tag
     await createReleaseTag(branch, branchCreationSHA);
 
-    await dispatchMessageToSlack("release success");
+    await dispatchMessageToSlack(`release success! versionCode from ${currentVersion.versionCode} to ${versionCode}, versionName from ${currentVersion.versionName} to ${versionName}.`);
     return res.status(200).json({ message: "OK" });
   } catch (err) {
     await dispatchMessageToSlack(err.message || "Error");
