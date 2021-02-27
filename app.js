@@ -23,19 +23,19 @@ const ANDROID_RELEASE_MINOR = "android release minor";
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
   const { body } = req;
-  console.log({ body });
+  
+　// Check for 1st time verify the API endpoint only
+  const challenge = body.challenge
+  if (challenge) {
+    res.status(200).json({challenge})
+  }
 
-  // const {
-  //   event: { text },
-  // } = body;
   const text = body?.event?.text || "";
   versioning = text.toString().split(" ");
   versioning = versioning[versioning.length - 1];
 
   try {
-    if (!text) {
-      return;
-    }
+
     // STEP 1: get currcent version and up verison, get new SHA
     const { currentVersion, sha } = await getCurrentVersion();
 
@@ -75,7 +75,6 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     return res.status(404).json({ message: err.message });
   }
 
-  return res.status(200).json({ ...body });
 });
 
 const decodeBase64 = (base64str) => {
