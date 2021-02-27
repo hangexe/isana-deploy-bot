@@ -67,9 +67,8 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     await dispatchMessageToSlack("release success");
     return res.status(200).json({ message: "OK" });
   } catch (err) {
-    console.error(err);
     await dispatchMessageToSlack(err.message || "Error");
-    return res.status(400).json({ message: "FAILED" });
+    return res.status(200).json({ message: "FAILED" });
   }
 });
 
@@ -162,7 +161,7 @@ const getCurrentVersion = async () => {
     const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${apiRefs}`;
     const { stdout } = await exec(curl);
     const { content, sha } = JSON.parse(stdout);
-    console.log("file", content);
+
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
@@ -211,7 +210,6 @@ const increaseVersion = (command, versionCode, versionName) => {
  * @param {*} message : message to dispatch
  */
 const dispatchMessageToSlack = async (message) => {
-  console.log({ message });
   const slackHookWithToken = `https://hooks.slack.com/services/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`;
   const curl = `curl -X POST -H 'Content-type: application/json' --data '{"text":"${message}"}' ${slackHookWithToken}`;
 
