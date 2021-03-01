@@ -70,6 +70,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     await dispatchMessageToSlack(`release success! versionCode from \`${currentVersion.versionCode}\` to \`${versionCode}\`, versionName from \`${currentVersion.versionName}\` to \`${versionName}\`.`);
     return res.status(200).json({ message: "OK" });
   } catch (err) {
+    console.log('ERROR nè', error)
     await dispatchMessageToSlack(err.message || "Error");
     return res.status(400).json({ message: "FAILED" });
   }
