@@ -1,10 +1,8 @@
 var express = require("express");
 var logger = require("morgan");
 var bodyParser = require("body-parser");
-var util = require("util");
-var exec = util.promisify(require("child_process").exec);
 var { parse } = require("envfile");
-
+var fetch = require("node-fetch");
 var app = express();
 
 app.use(logger("dev"));
@@ -18,8 +16,14 @@ const {
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
   APP_VERSION_FILE_URL,
-  SLACK_WEBHOOK_TOKEN,
+  SLACK_MESSAGE_API,
 } = require("./env");
+
+const COMMON_HTTP_HEADER = {
+  Accept: "application/vnd.github.v3+json",
+  "Content-Type": "application/json",
+  Authorization: `token ${GIT_TOKEN}`,
+};
 
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
@@ -62,30 +66,39 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     // TODO: change folder value on prod
     const folder = "test";
     const branch = `v${versionName}`;
-    const creationRes = await createBranch(`${folder}/${branch}`, updateSHA);
-    const branchCreationSHA = creationRes?.object?.sha;
+    const creationCommitSHA = await createBranch(
+      `${folder}/${branch}`,
+      updateSHA
+    );
 
     // STEP 5: crate tag
-    await createReleaseTag(branch, branchCreationSHA);
+    await createReleaseTag(branch, creationCommitSHA);
 
     await dispatchMessageToSlack(
-      `release success! versionCode from \`${currentVersion.versionCode}\` to \`${versionCode}\`, versionName from \`${currentVersion.versionName}\` to \`${versionName}\`.`
+      `release success! versionCode: \`${currentVersion.versionCode}\` -> \`${versionCode}\`; versionName: \`${currentVersion.versionName}\` -> \`${versionName}\`.`
       // `release success!`
     );
     return res.status(200).json({ message: "OK" });
   } catch (err) {
-    console.log("ERROR nè", err.message || "main threat error");
+    console.log("API_PROGRESS_ERROR:", err.message || "main threat error");
     await dispatchMessageToSlack(err.message || "Error");
-    return res.status(500).json({ message: "FAILED" });
+    return res.status(500).json({ message: err.message });
   }
 });
 
+/**
+ * convert base64 string to data string
+ * @param {*} base64str
+ */
 const decodeBase64 = (base64str) => {
-  console.log("DECODE NE", base64str);
   const data = new Buffer.from(base64str, "base64").toString("ascii");
   return parse(data);
 };
 
+/**
+ * convert data string to base64 string
+ * @param {*} data
+ */
 const encodeBase64 = (data) => {
   return new Buffer.from(data.toString()).toString("base64");
 };
@@ -103,11 +116,21 @@ const updateVersionFileContent = async (
   base64Content,
   currentSha
 ) => {
-  const curl = `curl -u ${GIT_TOKEN} -X PUT -H "Accept: application/vnd.github.v3+json" ${APP_VERSION_FILE_URL} -d '{"message":"SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}","content":"${base64Content}","sha":"${currentSha}","branch":"master"}'`;
   try {
-    const { stdout } = await exec(curl);
-    const { sha } = JSON.parse(stdout)["commit"];
-    return sha;
+    let data = {
+      message: `SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}`,
+      content: `${base64Content}`,
+      sha: `${currentSha}`,
+      branch: `master`,
+    };
+    let response = await fetch(`${APP_VERSION_FILE_URL}`, {
+      method: "PUT",
+      headers: { ...COMMON_HTTP_HEADER },
+      body: JSON.stringify(data),
+    });
+
+    let resData = await response.json();
+    return resData.commit.sha;
   } catch (err) {
     console.log(err);
     throw new Error("Could not update version file");
@@ -120,13 +143,23 @@ const updateVersionFileContent = async (
  * @param {*} sha
  */
 const createReleaseTag = async (tag, sha) => {
-  const curl = `curl -u ${GIT_TOKEN} -X POST -H "Accept: application/vnd.github.v3+json" ${APP_VERSION_FILE_URL} -d '{"ref":"refs/tags/${tag}","sha":"${sha}"}'`;
+
+  let body = {
+    ref: `refs/tags/${tag}`,
+    sha: `${sha}`,
+  };
 
   try {
-    const { stdout } = await exec(curl);
+    await fetch(`${APP_VERSION_FILE_URL}`, {
+      method: "POST",
+      headers: {
+        ...COMMON_HTTP_HEADER,
+      },
+      body: JSON.stringify(body),
+    });
   } catch (err) {
-    console.log(err);
-    throw new Error("create tag failure");
+    console.log('CREATE_RELEASE_TAG_ERROR:',err);
+    throw new Error("Create tag failure");
   }
 };
 
@@ -135,21 +168,35 @@ const createReleaseTag = async (tag, sha) => {
  * @param {*} newBranchName new branch's name, example test/ABC
  * @param {*} sha
  * @return object contains info of created branch
- * @return {*} sha
+ * @return {*} a new sha commit after creating new branch
  */
 const createBranch = async (newBranchName, sha) => {
   if (!newBranchName || !sha) {
-    throw "branch name or sha is required";
+    throw new Error("branch name or sha is required");
   }
 
   try {
     const apiRefs =
       "https://api.github.com/repos/Lighthouse-Inc/isana-android/git/refs";
-    const curl = `curl -u ${GIT_TOKEN} -X POST -H "Accept: application/vnd.github.v3+json" ${apiRefs} -d '{"ref":"refs/heads/${newBranchName}","sha":"${sha}"}'`;
-    const { stdout } = await exec(curl);
-    return JSON.parse(stdout);
+
+    let body = {
+      ref: `refs/heads/${newBranchName}`,
+      sha: `${sha}`,
+    };
+    let response = await fetch(`${apiRefs}`, {
+      method: "POST",
+      headers: {
+        ...COMMON_HTTP_HEADER,
+      },
+      body: JSON.stringify(body),
+    });
+    data = await response.json();
+    if (!data?.object?.sha) {
+      throw new Error("Creating branch API was failed");
+    }
+    return data.object.sha;
   } catch (err) {
-    console.error(err);
+    console.error("CREATE_BRANCH_ERROR:", err);
     throw err;
   }
 };
@@ -161,18 +208,22 @@ const createBranch = async (newBranchName, sha) => {
 const getCurrentVersion = async () => {
   let currentVersion;
   try {
-    const apiRefs =
-      "https://api.github.com/repos/Lighthouse-Inc/isana-android/contents/versionApp.properties?ref=master";
-    const curl = `curl -u ${GIT_TOKEN} -H "Accept: application/vnd.github.v3+json" ${apiRefs}`;
-    const { stdout, stderr } = await exec(curl);
-    const { content, sha } = JSON.parse(stdout);
-    if (!!stderr) {
-      throw new Error("Error");
-    }
+
+    let response = await fetch(
+      `https://api.github.com/repos/Lighthouse-Inc/isana-android/contents/versionApp.properties?ref=master`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${GIT_TOKEN}`,
+        },
+      }
+    );
+
+    const { content, sha } = await response.json();
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
-    console.error("getCurrentVersion", err);
+    console.error("GET_CURRENT_VERSION_ERROR:", err.message);
     throw new Error(
       `Could not get version file from reposity due to github token was destroyed or other reason`
     );
@@ -205,7 +256,7 @@ const increaseVersion = (command, versionCode, versionName) => {
       patch = 0;
       break;
     default:
-      throw new Error("release command was not valid");
+      throw new Error("Please send a valid command");
   }
   versionName = `${major}.${minor}.${patch}`;
   versionCode = +versionCode + 1;
@@ -217,11 +268,22 @@ const increaseVersion = (command, versionCode, versionName) => {
  * @param {*} message : message to dispatch
  */
 const dispatchMessageToSlack = async (message = "unknown error") => {
-  console.log({ message });
-  const curl = `curl -X POST -H 'Content-type: application/json' --data '{"text":"${message}"}' ${SLACK_WEBHOOK_TOKEN}`;
+  console.log("DISPATCH_MESSAGE:", message);
+  try {
+    let body = {
+      text: `${message}`,
+    };
+    await fetch(`${SLACK_MESSAGE_API}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    console.log({ SLACK_MESSAGE_SENDING_ERROR: err.message });
+  }
 
-  const { stderr } = await exec(curl);
-  console.log({ stderr });
   return true;
 };
 

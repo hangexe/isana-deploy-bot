@@ -1,5 +1,5 @@
 // Github token
-const GIT_TOKEN = "hangexe:f0c661da23984fadccb68bb1883e1e8ed84bf292";
+const GIT_TOKEN = "243fd1188ebb3fcbe0eabc1176a42f302e2d6fef";
 
 // Slackbot Command
 const ANDROID_RELEASE = "android release";
@@ -11,7 +11,7 @@ const ANDROID_RELEASE_MINOR = "android release minor";
 const APP_VERSION_FILE_URL =
   "https://api.github.com/repos/Lighthouse-Inc/isana-android/contents/versionApp.properties";
 
-const SLACK_WEBHOOK_TOKEN =
+const SLACK_MESSAGE_API =
   "https://hooks.slack.com/services/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";
 
 module.exports = {
@@ -21,5 +21,5 @@ module.exports = {
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
   APP_VERSION_FILE_URL,
-  SLACK_WEBHOOK_TOKEN,
+  SLACK_MESSAGE_API
 };
