@@ -11,14 +11,15 @@ app.use(logger("dev"));
 app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
-const GIT_TOKEN = "hangexe:50a7f6ef21cc261ffd28a2ac0b78313b8c56be3d";
-const REPOSITY =
-  "https://api.github.com/repos/Lighthouse-Inc/isana-android/branches/master";
-
-const ANDROID_RELEASE = "android release";
-const ANDROID_RELEASE_PATCH = "android release patch";
-const ANDROID_RELEASE_MAJOR = "android release major";
-const ANDROID_RELEASE_MINOR = "android release minor";
+const {
+  GIT_TOKEN,
+  ANDROID_RELEASE,
+  ANDROID_RELEASE_PATCH,
+  ANDROID_RELEASE_MAJOR,
+  ANDROID_RELEASE_MINOR,
+  APP_VERSION_FILE_URL,
+  SLACK_WEBHOOK_TOKEN,
+} = require("./env");
 
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
@@ -38,7 +39,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   try {
     // STEP 1: get currcent version and up verison, get new SHA
     const { currentVersion, sha } = await getCurrentVersion();
-    console.log({ currentVersion, sha } )
+    console.log({ currentVersion, sha });
 
     // STEP 2: increase current version
     let { versionCode, versionName } = increaseVersion(
@@ -73,7 +74,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     );
     return res.status(200).json({ message: "OK" });
   } catch (err) {
-    console.log("ERROR nè", err.message || 'main threat error');
+    console.log("ERROR nè", err.message || "main threat error");
     await dispatchMessageToSlack(err.message || "Error");
     return res.status(400).json({ message: "FAILED" });
   }
@@ -102,9 +103,7 @@ const updateVersionFileContent = async (
   base64Content,
   currentSha
 ) => {
-  const fileUrl =
-    "https://api.github.com/repos/Lighthouse-Inc/isana-android/contents/versionApp.properties";
-  const curl = `curl -u ${GIT_TOKEN} -X PUT -H "Accept: application/vnd.github.v3+json" ${fileUrl} -d '{"message":"SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}","content":"${base64Content}","sha":"${currentSha}","branch":"master"}'`;
+  const curl = `curl -u ${GIT_TOKEN} -X PUT -H "Accept: application/vnd.github.v3+json" ${APP_VERSION_FILE_URL} -d '{"message":"SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}","content":"${base64Content}","sha":"${currentSha}","branch":"master"}'`;
   try {
     const { stdout } = await exec(curl);
     const { sha } = JSON.parse(stdout)["commit"];
@@ -121,9 +120,7 @@ const updateVersionFileContent = async (
  * @param {*} sha
  */
 const createReleaseTag = async (tag, sha) => {
-  const apiRefs =
-    "https://api.github.com/repos/Lighthouse-Inc/isana-android/git/refs";
-  const curl = `curl -u ${GIT_TOKEN} -X POST -H "Accept: application/vnd.github.v3+json" ${apiRefs} -d '{"ref":"refs/tags/${tag}","sha":"${sha}"}'`;
+  const curl = `curl -u ${GIT_TOKEN} -X POST -H "Accept: application/vnd.github.v3+json" ${APP_VERSION_FILE_URL} -d '{"ref":"refs/tags/${tag}","sha":"${sha}"}'`;
 
   try {
     const { stdout } = await exec(curl);
@@ -170,12 +167,12 @@ const getCurrentVersion = async () => {
     const { stdout, stderr } = await exec(curl);
     const { content, sha } = JSON.parse(stdout);
     if (!!stderr) {
-      throw new Error('Error');
+      throw new Error("Error");
     }
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
-    console.error('getCurrentVersion', err);
+    console.error("getCurrentVersion", err);
     throw new Error(
       `Could not get version file from reposity due to github token was destroyed or other reason`
     );
@@ -183,7 +180,7 @@ const getCurrentVersion = async () => {
 };
 
 /**
- *
+ * increase the version of current version
  * @param {*} versionCode
  * @param {*} versionName
  * @param {*} versioning
@@ -216,22 +213,15 @@ const increaseVersion = (command, versionCode, versionName) => {
 };
 
 /**
- *
+ * send a message to slack chanel
  * @param {*} message : message to dispatch
  */
-const dispatchMessageToSlack = async (message) => {
-  console.log({message})
-  const slackHookWithToken = `https://hooks.slack.com/services/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`;
-  const curl = `curl -X POST -H 'Content-type: application/json' --data '{"text":"${message}"}' ${slackHookWithToken}`;
+const dispatchMessageToSlack = async (message = "unknown error") => {
+  console.log({ message });
+  const curl = `curl -X POST -H 'Content-type: application/json' --data '{"text":"${message}"}' ${SLACK_WEBHOOK_TOKEN}`;
 
-  // try {
-  const {stderr} = await exec(curl);
-  console.log({stderr})
-  // } catch (err) {
-    // console.log(err);
-    // throw new Error("dispatch message failure");
-  // }
-  // if (!!console.error();)
+  const { stderr } = await exec(curl);
+  console.log({ stderr });
   return true;
 };
 
