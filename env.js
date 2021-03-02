@@ -1,5 +1,5 @@
 // Github token
-const GIT_TOKEN = "66fd5568c14d9b5bbf263bb4b68d1a8f7b33871q";
+const GIT_TOKEN = "66fd5568c14d9b5bbf263bb4b68d1a8f7b33871d";
 
 // Slackbot Command
 const ANDROID_RELEASE = "android release";
@@ -12,7 +12,7 @@ const APP_VERSION_FILE_URL =
   "https://api.github.com/repos/Lighthouse-Inc/isana-android/contents/versionApp.properties";
 
 const SLACK_MESSAGE_API =
-  "https://hooks.slack.com/services/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";
+  "https://hooks.slack.com/services/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";
 
 module.exports = {
   GIT_TOKEN,
