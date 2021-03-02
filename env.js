@@ -1,5 +1,5 @@
 // Github token
-const GIT_TOKEN = "hangexe:50a7f6ef21cc261ffd28a2ac0b78313b8c56be3d";
+const GIT_TOKEN = "hangexe:f0c661da23984fadccb68bb1883e1e8ed84bf292";
 
 // Slackbot Command
 const ANDROID_RELEASE = "android release";
