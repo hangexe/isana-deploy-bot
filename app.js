@@ -76,7 +76,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   } catch (err) {
     console.log("ERROR nè", err.message || "main threat error");
     await dispatchMessageToSlack(err.message || "Error");
-    return res.status(400).json({ message: "FAILED" });
+    return res.status(500).json({ message: "FAILED" });
   }
 });
 
