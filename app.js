@@ -65,7 +65,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     const branchCreationSHA = creationRes?.object?.sha;
 
     // STEP 5: crate tag
-    // await createReleaseTag(branch, branchCreationSHA);
+    await createReleaseTag(branch, branchCreationSHA);
 
     await dispatchMessageToSlack(
       `release success! versionCode from \`${currentVersion.versionCode}\` to \`${versionCode}\`, versionName from \`${currentVersion.versionName}\` to \`${versionName}\`.`
@@ -73,7 +73,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     );
     return res.status(200).json({ message: "OK" });
   } catch (err) {
-    console.log("ERROR nè", err);
+    console.log("ERROR nè", err.message || 'main threat error');
     await dispatchMessageToSlack(err.message || "Error");
     return res.status(400).json({ message: "FAILED" });
   }
@@ -175,7 +175,7 @@ const getCurrentVersion = async () => {
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
-    console.error(err);
+    console.error('getCurrentVersion', err);
     throw new Error(
       `Could not get version file from reposity due to github token was destroyed or other reason`
     );
@@ -221,15 +221,17 @@ const increaseVersion = (command, versionCode, versionName) => {
  */
 const dispatchMessageToSlack = async (message) => {
   console.log({message})
-  const slackHookWithToken = `https://hooks.slack.com/services/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`;
+  const slackHookWithToken = `https://hooks.slack.com/services/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`;
   const curl = `curl -X POST -H 'Content-type: application/json' --data '{"text":"${message}"}' ${slackHookWithToken}`;
 
-  try {
-    await exec(curl);
-  } catch (err) {
-    console.log(err);
-    throw new Error("dispatch message failure");
-  }
+  // try {
+  const {stderr} = await exec(curl);
+  console.log({stderr})
+  // } catch (err) {
+    // console.log(err);
+    // throw new Error("dispatch message failure");
+  // }
+  // if (!!console.error();)
   return true;
 };
 
