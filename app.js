@@ -10,14 +10,14 @@ app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 const {
-  GIT_TOKEN,
+  GIT_TOKEN, // TODO: chuyển tới file .env
   ANDROID_RELEASE,
   ANDROID_RELEASE_PATCH,
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
   APP_VERSION_FILE_URL,
-  SLACK_MESSAGE_API,
-} = require("./env");
+  SLACK_MESSAGE_API, // TODO: chuyển tới file .env
+} = require("./constant");
 
 const COMMON_HTTP_HEADER = {
   Accept: "application/vnd.github.v3+json",
