@@ -1,8 +1,9 @@
-var express = require("express");
 var logger = require("morgan");
 var bodyParser = require("body-parser");
 var { parse } = require("envfile");
 var fetch = require("node-fetch");
+
+var express = require("express");
 var app = express();
 
 app.use(logger("dev"));
@@ -10,7 +11,7 @@ app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 const {
-  GIT_TOKEN, // TODO: chuyển tới file .env
+  GIT_PERSONAL_ACCESS_TOKEN, // TODO: chuyển tới file .env
   ANDROID_RELEASE,
   ANDROID_RELEASE_PATCH,
   ANDROID_RELEASE_MAJOR,
@@ -20,11 +21,17 @@ const {
   GIT_API_ENDPOINT
 } = require("./constant");
 
+var { Octokit } = require("@octokit/core");
+const octokit = new Octokit({ auth: GIT_PERSONAL_ACCESS_TOKEN });
+
 const COMMON_HTTP_HEADER = {
   Accept: "application/vnd.github.v3+json",
   "Content-Type": "application/json",
-  Authorization: `token ${GIT_TOKEN}`
+  Authorization: `token ${GIT_PERSONAL_ACCESS_TOKEN}`
 };
+
+const GIT_OWNER = "Lighthouse-Inc";
+const GIT_REPO = "isana-android";
 
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
@@ -67,17 +74,13 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     // TODO: change folder value on prod
     const folder = "test";
     const branch = `v${versionName}`;
-    const creationCommitSHA = await createBranch(
-      `${folder}/${branch}`,
-      updateSHA
-    );
+    const creationRes = await createBranch(`${folder}/${branch}`, updateSHA);
 
     // STEP 5: crate tag
-    await createReleaseTag(branch, creationCommitSHA);
+    await createReleaseTag(branch, creationRes.object);
 
     await dispatchMessageToSlack(
       `release success! versionCode: \`${currentVersion.versionCode}\` -> \`${versionCode}\`; versionName: \`${currentVersion.versionName}\` -> \`${versionName}\`.`
-      // `release success!`
     );
     return res.status(200).json({ message: "OK" });
   } catch (err) {
@@ -118,20 +121,20 @@ const updateVersionFileContent = async (
   currentSha
 ) => {
   try {
-    let data = {
-      message: `SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}`,
-      content: `${base64Content}`,
-      sha: `${currentSha}`,
-      branch: `master`
-    };
-    let response = await fetch(`${APP_VERSION_FILE_URL}`, {
-      method: "PUT",
-      headers: { ...COMMON_HTTP_HEADER },
-      body: JSON.stringify(data)
-    });
-
-    let resData = await response.json();
-    return resData.commit.sha;
+    const response = await octokit.request(
+      "PUT /repos/{owner}/{repo}/contents/versionApp.properties",
+      {
+        owner: GIT_OWNER,
+        repo: GIT_REPO,
+        message: `SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}`,
+        content: `${base64Content}`,
+        sha: `${currentSha}`,
+        branch: "master"
+      }
+    );
+    console.log("=======UPDATE_VERSION_FILE=======")
+    console.log({response})
+    return response.data.commit.sha
   } catch (err) {
     console.log(err);
     throw new Error("Could not update version file");
@@ -143,25 +146,19 @@ const updateVersionFileContent = async (
  * @param {*} tag
  * @param {*} sha
  */
-const createReleaseTag = async (tag, sha) => {
-  let body = {
-    ref: `refs/tags/${tag}`,
-    sha: `${sha}`
-  };
-
-  console.log({body})
-
+const createReleaseTag = async (tag, object) => {
   try {
-    const response = await fetch(`${GIT_API_ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        Accept: "application/vnd.github.v3+json"
-      },
-      body: JSON.stringify(body)
-    });
-    const data = await response.json();
-    console.log("=============CREATE_RELEASE_TAG=============");
-    console.log({ data });
+    const response = await octokit.request(
+      "POST /repos/{owner}/{repo}/git/refs",
+      {
+        owner: GIT_OWNER,
+        repo: GIT_REPO,
+        ref: `refs/tags/${tag}`,
+        sha: object.sha
+      }
+    );
+    console.log("=====CREATE_RELEASE_TAG======");
+    console.log({ response });
   } catch (err) {
     console.log("ERROR_CREATE_RELEASE_TAG:", err);
     throw new Error("Create tag failure");
@@ -181,25 +178,16 @@ const createBranch = async (newBranchName, sha) => {
   }
 
   try {
-    // const apiRefs =
-    //   "https://api.github.com/repos/Lighthouse-Inc/isana-android/git/refs";
-
-    let body = {
+    const data = await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
+      owner: GIT_OWNER,
+      repo: GIT_REPO,
       ref: `refs/heads/${newBranchName}`,
       sha: `${sha}`
-    };
-    let response = await fetch(`${GIT_API_ENDPOINT}`, {
-      method: "POST",
-      headers: {
-        ...COMMON_HTTP_HEADER
-      },
-      body: JSON.stringify(body)
     });
-    data = await response.json();
-    if (!data?.object?.sha) {
-      throw new Error("Creating branch API was failed");
-    }
-    return data.object.sha;
+
+    console.log("=====CREATE_RELEASE_BRANCH======");
+    console.log({ data });
+    return data.data;
   } catch (err) {
     console.error("ERROR_CREATE_BRANCH:", err);
     throw err;
@@ -213,17 +201,16 @@ const createBranch = async (newBranchName, sha) => {
 const getCurrentVersion = async () => {
   let currentVersion;
   try {
-    let response = await fetch(
-      `https://api.github.com/repos/Lighthouse-Inc/isana-android/contents/versionApp.properties?ref=master`,
+    const data = await octokit.request(
+      "GET /repos/{owner}/{repo}/contents/versionApp.properties?ref=master",
       {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `token ${GIT_TOKEN}`
-        }
+        owner: GIT_OWNER,
+        repo: GIT_REPO
       }
     );
-
-    const { content, sha } = await response.json();
+    console.log("=======GET_CURRENT_VERSION======");
+    console.log({ data });
+    const { content, sha } = data.data;
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
