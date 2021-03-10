@@ -149,7 +149,7 @@ const createReleaseTag = async (tag, sha) => {
   };
 
   try {
-    const response = await fetch(`${APP_VERSION_FILE_URL}`, {
+    const response = await fetch(`${APP_VERSION_FILE_URL}?refs=master`, {
       method: "POST",
       headers: {
         ...COMMON_HTTP_HEADER
