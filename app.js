@@ -152,7 +152,7 @@ const createReleaseTag = async (tag, sha) => {
     const response = await fetch(`${APP_VERSION_FILE_URL}?refs=master`, {
       method: "POST",
       headers: {
-        ...COMMON_HTTP_HEADER
+        Accept: "application/vnd.github.v3+json"
       },
       body: JSON.stringify(body)
     });
