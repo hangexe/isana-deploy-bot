@@ -16,7 +16,8 @@ const {
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
   APP_VERSION_FILE_URL,
-  SLACK_MESSAGE_API // TODO: chuyển tới file .env
+  SLACK_MESSAGE_API, // TODO: chuyển tới file .env
+  GIT_API_ENDPOINT
 } = require("./constant");
 
 const COMMON_HTTP_HEADER = {
@@ -148,8 +149,10 @@ const createReleaseTag = async (tag, sha) => {
     sha: `${sha}`
   };
 
+  console.log({body})
+
   try {
-    const response = await fetch(`${APP_VERSION_FILE_URL}?refs=master`, {
+    const response = await fetch(`${GIT_API_ENDPOINT}`, {
       method: "POST",
       headers: {
         Accept: "application/vnd.github.v3+json"
@@ -178,14 +181,14 @@ const createBranch = async (newBranchName, sha) => {
   }
 
   try {
-    const apiRefs =
-      "https://api.github.com/repos/Lighthouse-Inc/isana-android/git/refs";
+    // const apiRefs =
+    //   "https://api.github.com/repos/Lighthouse-Inc/isana-android/git/refs";
 
     let body = {
       ref: `refs/heads/${newBranchName}`,
       sha: `${sha}`
     };
-    let response = await fetch(`${apiRefs}`, {
+    let response = await fetch(`${GIT_API_ENDPOINT}`, {
       method: "POST",
       headers: {
         ...COMMON_HTTP_HEADER
