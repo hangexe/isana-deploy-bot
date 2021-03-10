@@ -16,13 +16,13 @@ const {
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
   APP_VERSION_FILE_URL,
-  SLACK_MESSAGE_API, // TODO: chuyển tới file .env
+  SLACK_MESSAGE_API // TODO: chuyển tới file .env
 } = require("./constant");
 
 const COMMON_HTTP_HEADER = {
   Accept: "application/vnd.github.v3+json",
   "Content-Type": "application/json",
-  Authorization: `token ${GIT_TOKEN}`,
+  Authorization: `token ${GIT_TOKEN}`
 };
 
 // POST - request is sent from slack bot
@@ -80,7 +80,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     );
     return res.status(200).json({ message: "OK" });
   } catch (err) {
-    console.log("API_PROGRESS_ERROR:", err.message || "main threat error");
+    console.log("ERROR_API_PROGRESS:", err.message || "main threat error");
     await dispatchMessageToSlack(err.message || "Error");
     return res.status(500).json({ message: err.message });
   }
@@ -121,12 +121,12 @@ const updateVersionFileContent = async (
       message: `SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}`,
       content: `${base64Content}`,
       sha: `${currentSha}`,
-      branch: `master`,
+      branch: `master`
     };
     let response = await fetch(`${APP_VERSION_FILE_URL}`, {
       method: "PUT",
       headers: { ...COMMON_HTTP_HEADER },
-      body: JSON.stringify(data),
+      body: JSON.stringify(data)
     });
 
     let resData = await response.json();
@@ -143,22 +143,24 @@ const updateVersionFileContent = async (
  * @param {*} sha
  */
 const createReleaseTag = async (tag, sha) => {
-
   let body = {
     ref: `refs/tags/${tag}`,
-    sha: `${sha}`,
+    sha: `${sha}`
   };
 
   try {
-    await fetch(`${APP_VERSION_FILE_URL}`, {
+    const response = await fetch(`${APP_VERSION_FILE_URL}`, {
       method: "POST",
       headers: {
-        ...COMMON_HTTP_HEADER,
+        ...COMMON_HTTP_HEADER
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body)
     });
+    const data = await response.json();
+    console.log("=============CREATE_RELEASE_TAG=============");
+    console.log({ data });
   } catch (err) {
-    console.log('CREATE_RELEASE_TAG_ERROR:',err);
+    console.log("ERROR_CREATE_RELEASE_TAG:", err);
     throw new Error("Create tag failure");
   }
 };
@@ -181,14 +183,14 @@ const createBranch = async (newBranchName, sha) => {
 
     let body = {
       ref: `refs/heads/${newBranchName}`,
-      sha: `${sha}`,
+      sha: `${sha}`
     };
     let response = await fetch(`${apiRefs}`, {
       method: "POST",
       headers: {
-        ...COMMON_HTTP_HEADER,
+        ...COMMON_HTTP_HEADER
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body)
     });
     data = await response.json();
     if (!data?.object?.sha) {
@@ -196,7 +198,7 @@ const createBranch = async (newBranchName, sha) => {
     }
     return data.object.sha;
   } catch (err) {
-    console.error("CREATE_BRANCH_ERROR:", err);
+    console.error("ERROR_CREATE_BRANCH:", err);
     throw err;
   }
 };
@@ -208,14 +210,13 @@ const createBranch = async (newBranchName, sha) => {
 const getCurrentVersion = async () => {
   let currentVersion;
   try {
-
     let response = await fetch(
       `https://api.github.com/repos/Lighthouse-Inc/isana-android/contents/versionApp.properties?ref=master`,
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${GIT_TOKEN}`,
-        },
+          Authorization: `token ${GIT_TOKEN}`
+        }
       }
     );
 
@@ -223,7 +224,7 @@ const getCurrentVersion = async () => {
     currentVersion = decodeBase64(content);
     return { currentVersion, sha };
   } catch (err) {
-    console.error("GET_CURRENT_VERSION_ERROR:", err.message);
+    console.error("ERROR_GET_CURRENT_VERSION:", err.message);
     throw new Error(
       `Could not get version file from reposity due to github token was destroyed or other reason`
     );
@@ -271,14 +272,14 @@ const dispatchMessageToSlack = async (message = "unknown error") => {
   console.log("DISPATCH_MESSAGE:", message);
   try {
     let body = {
-      text: `${message}`,
+      text: `${message}`
     };
     await fetch(`${SLACK_MESSAGE_API}`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body)
     });
   } catch (err) {
     console.log({ SLACK_MESSAGE_SENDING_ERROR: err.message });
