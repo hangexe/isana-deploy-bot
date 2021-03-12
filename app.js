@@ -2,6 +2,7 @@ var logger = require("morgan");
 var bodyParser = require("body-parser");
 var { parse } = require("envfile");
 var fetch = require("node-fetch");
+require("dotenv").config();
 
 var express = require("express");
 var app = express();
@@ -11,27 +12,37 @@ app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 const {
-  GIT_PERSONAL_ACCESS_TOKEN, // TODO: chuyển tới file .env
+  GIT_REPO,
+  GIT_OWNER,
+  GIT_PERSONAL_ACCESS_TOKEN,
   ANDROID_RELEASE,
   ANDROID_RELEASE_PATCH,
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
-  APP_VERSION_FILE_URL,
-  SLACK_MESSAGE_API, // TODO: chuyển tới file .env
-  GIT_API_ENDPOINT
-} = require("./constant");
+  GIT_VERSION_FILE_REF,
+  SLACK_MESSAGE_HOOK
+} = process.env;
 
 var { Octokit } = require("@octokit/core");
 const octokit = new Octokit({ auth: GIT_PERSONAL_ACCESS_TOKEN });
 
-const COMMON_HTTP_HEADER = {
-  Accept: "application/vnd.github.v3+json",
-  "Content-Type": "application/json",
-  Authorization: `token ${GIT_PERSONAL_ACCESS_TOKEN}`
-};
-
-const GIT_OWNER = "Lighthouse-Inc";
-const GIT_REPO = "isana-android";
+app.get("/", (req, res) => {
+  const gitToken = process.env.GIT_PERSONAL_ACCESS_TOKEN;
+  console.log({
+    GIT_REPO,
+    GIT_OWNER,
+    GIT_PERSONAL_ACCESS_TOKEN,
+    ANDROID_RELEASE,
+    ANDROID_RELEASE_PATCH,
+    ANDROID_RELEASE_MAJOR,
+    ANDROID_RELEASE_MINOR,
+    GIT_VERSION_FILE_REF,
+    SLACK_MESSAGE_HOOK
+  });
+  res.send(
+    "<h5>こんにちは！</h5><p>POST - /api/deploy-isana-android　ご利用ください </p>"
+  );
+});
 
 // POST - request is sent from slack bot
 app.post("/api/deploy-isana-android", async (req, res, next) => {
@@ -122,7 +133,7 @@ const updateVersionFileContent = async (
 ) => {
   try {
     const response = await octokit.request(
-      "PUT /repos/{owner}/{repo}/contents/versionApp.properties",
+      `PUT /repos/{owner}/{repo}/${GIT_VERSION_FILE_REF}`,
       {
         owner: GIT_OWNER,
         repo: GIT_REPO,
@@ -132,9 +143,9 @@ const updateVersionFileContent = async (
         branch: "master"
       }
     );
-    console.log("=======UPDATE_VERSION_FILE=======")
-    console.log({response})
-    return response.data.commit.sha
+    console.log("=======UPDATE_VERSION_FILE=======");
+    console.log({ response });
+    return response.data.commit.sha;
   } catch (err) {
     console.log(err);
     throw new Error("Could not update version file");
@@ -202,7 +213,7 @@ const getCurrentVersion = async () => {
   let currentVersion;
   try {
     const data = await octokit.request(
-      "GET /repos/{owner}/{repo}/contents/versionApp.properties?ref=master",
+      `GET /repos/{owner}/{repo}/${GIT_VERSION_FILE_REF}?ref=master`,
       {
         owner: GIT_OWNER,
         repo: GIT_REPO
@@ -264,7 +275,7 @@ const dispatchMessageToSlack = async (message = "unknown error") => {
     let body = {
       text: `${message}`
     };
-    await fetch(`${SLACK_MESSAGE_API}`, {
+    await fetch(`${SLACK_MESSAGE_HOOK}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
