@@ -90,7 +90,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     await createReleaseTag(branch, creationRes.object);
 
     await dispatchMessageToSlack(
-      `release success! versionCode: \`${currentVersion.versionCode}\` -> \`${versionCode}\`; versionName: \`${currentVersion.versionName}\` -> \`${versionName}\`.`
+      `release success! \n versionCode: \`${currentVersion.versionCode}\` -> \`${versionCode}\` \n versionName: \`v${currentVersion.versionName}\` -> \`v${versionName}\` tags: \`v${versionName}\``
     );
     return res.status(200).json({ message: "OK" });
   } catch (err) {
