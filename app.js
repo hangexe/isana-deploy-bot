@@ -15,11 +15,11 @@ const {
   GIT_REPO,
   GIT_OWNER,
   GIT_PERSONAL_ACCESS_TOKEN,
+  GIT_VERSION_FILE_REF,
   ANDROID_RELEASE,
   ANDROID_RELEASE_PATCH,
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
-  GIT_VERSION_FILE_REF,
   SLACK_MESSAGE_HOOK
 } = process.env;
 
@@ -27,16 +27,15 @@ var { Octokit } = require("@octokit/core");
 const octokit = new Octokit({ auth: GIT_PERSONAL_ACCESS_TOKEN });
 
 app.get("/", (req, res) => {
-  const gitToken = process.env.GIT_PERSONAL_ACCESS_TOKEN;
   console.log({
     GIT_REPO,
     GIT_OWNER,
     GIT_PERSONAL_ACCESS_TOKEN,
+    GIT_VERSION_FILE_REF,
     ANDROID_RELEASE,
     ANDROID_RELEASE_PATCH,
     ANDROID_RELEASE_MAJOR,
     ANDROID_RELEASE_MINOR,
-    GIT_VERSION_FILE_REF,
     SLACK_MESSAGE_HOOK
   });
   res.send(
