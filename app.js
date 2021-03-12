@@ -20,7 +20,8 @@ const {
   ANDROID_RELEASE_PATCH,
   ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
-  SLACK_MESSAGE_HOOK
+  SLACK_MESSAGE_HOOK,
+  GIT_FOLDER
 } = process.env;
 
 var { Octokit } = require("@octokit/core");
@@ -82,9 +83,8 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
 
     // STEP 4: create new branch
     // TODO: change folder value on prod
-    const folder = "test";
     const branch = `v${versionName}`;
-    const creationRes = await createBranch(`${folder}/${branch}`, updateSHA);
+    const creationRes = await createBranch(`${GIT_FOLDER}/${branch}`, updateSHA);
 
     // STEP 5: crate tag
     await createReleaseTag(branch, creationRes.object);
