@@ -1,7 +1,7 @@
 var logger = require("morgan");
 var bodyParser = require("body-parser");
 var { parse } = require("envfile");
-var fetch = require("node-fetch");
+
 require("dotenv").config();
 
 var express = require("express");
@@ -12,33 +12,45 @@ app.use(bodyParser.json({ type: "application/json" }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 const {
-  GIT_REPO,
-  GIT_OWNER,
-  GIT_PERSONAL_ACCESS_TOKEN,
-  GIT_VERSION_FILE_REF,
-  ANDROID_RELEASE,
+  ANDROID_RELEASE_DEFAULT,
   ANDROID_RELEASE_PATCH,
-  ANDROID_RELEASE_MAJOR,
   ANDROID_RELEASE_MINOR,
-  SLACK_MESSAGE_HOOK,
-  GIT_FOLDER
+  ANDROID_RELEASE_MAJOR,
+  GIT_RELEASE_PROD_FOLDER,
+  GIT_RELEASE_STG_FOLDER
 } = process.env;
 
-var { Octokit } = require("@octokit/core");
-const octokit = new Octokit({ auth: GIT_PERSONAL_ACCESS_TOKEN });
+const PROD = "prod";
+const DEV = "dev";
+const STG = "stg";
+
+// production release command
+const ANDROID_PROD_RELEASE = "android prod release";
+const ANDROID_PROD_RELEASE_PATCH = "android prod release patch";
+const ANDROID_PROD_RELEASE_MAJOR = "android prod release major";
+const ANDROID_PROD_RELEASE_MINOR = "android prod release minor";
+
+// dev release command
+const ANDROID_DEV_RELEASE = "android dev release";
+const ANDROID_DEV_RELEASE_PATCH = "android dev release patch";
+const ANDROID_DEV_RELEASE_MAJOR = "android dev release major";
+const ANDROID_DEV_RELEASE_MINOR = "android dev release minor";
+
+// staging release command
+const ANDROID_STG_RELEASE = "android stg release";
+const ANDROID_STG_RELEASE_PATCH = "android stg release patch";
+const ANDROID_STG_RELEASE_MAJOR = "android stg release major";
+const ANDROID_STG_RELEASE_MINOR = "android stg release minor";
+
+const {
+  getCurrentVersion,
+  updateVersionFileContent,
+  createBranch,
+  createReleaseTag
+} = require("./services/git.service");
+const { dispatchMessageToSlack } = require("./services/slack.service");
 
 app.get("/", (req, res) => {
-  console.log({
-    GIT_REPO,
-    GIT_OWNER,
-    GIT_PERSONAL_ACCESS_TOKEN,
-    GIT_VERSION_FILE_REF,
-    ANDROID_RELEASE,
-    ANDROID_RELEASE_PATCH,
-    ANDROID_RELEASE_MAJOR,
-    ANDROID_RELEASE_MINOR,
-    SLACK_MESSAGE_HOOK
-  });
   res.send(
     "<h5>こんにちは！</h5><p>POST - /api/deploy-isana-android　ご利用ください </p>"
   );
@@ -53,23 +65,75 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     return res.status(200).json({ challenge });
   }
 
-  let text = body?.event?.text || "";
+  let command = body?.event?.text || "";
   txtPattern = /^(\<\@)([A-Z0-9]{11})(\>)/;
-  text = text.replace(txtPattern, "").trim();
-  versioning = text.toString().split(" ");
+  // TODO: làm cái validate
+  // validCommandPattern = /^(\<\@)([A-Z0-9]{11})(\>)/
+
+  command = command.replace(txtPattern, "").trim();
+  versioning = command.toString().split(" ");
   versioning = versioning[versioning.length - 1];
 
+  console.log({ command, versioning });
+
+  try {
+    checkCommand(command);
+
+    let version;
+    let releasedEnvironemnt = "";
+
+    if (command.indexOf(PROD) >= 0) {
+      version = await releaseProduction(versioning);
+      releasedEnvironemnt = "production";
+    } else if (command.indexOf(DEV) >= 0) {
+      version = await releaseDev(versioning);
+      releasedEnvironemnt = "dev";
+    } else if (command.indexOf(STG) >= 0) {
+      version = await releaseStg(versioning);
+      releasedEnvironemnt = "staging";
+    }
+
+    let {
+      oldVersionCode,
+      oldVersionName,
+      newVersionCode,
+      newVersionName
+    } = version;
+
+    let successMsg = `\n
+    *${releasedEnvironemnt.toUpperCase()}* releases success!\n
+    versionCode: \`${oldVersionCode}\` -> \`${newVersionCode}\`\n
+    versionName: \`v${oldVersionName}\` -> \`v${newVersionName}\`\n`;
+    if (command.indexOf(PROD) >= 0) {
+      successMsg = successMsg + `tags: \`v${newVersionName}\``;
+    }
+
+    await dispatchMessageToSlack(successMsg);
+
+    return res.status(200).json({ message: "OK" });
+  } catch (err) {
+    console.log("ERROR_API_PROGRESS:", err.message || "main threat error");
+    await dispatchMessageToSlack(err.message || "Error");
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+const releaseProduction = async (versioning) => {
+  // console.log({ command });
   try {
     // STEP 1: get currcent version and up verison, get new SHA
-    const { currentVersion, sha } = await getCurrentVersion();
-    console.log({ currentVersion, sha });
+    const { content, sha } = await getCurrentVersion("master");
+    const currentVersion = decodeBase64(content);
 
+    console.log({ currentVersion });
     // STEP 2: increase current version
     let { versionCode, versionName } = increaseVersion(
-      text,
+      versioning,
       currentVersion.versionCode,
       currentVersion.versionName
     );
+
+    console.log({ versionCode, versionName });
 
     // STEP 3: update version content of version file in remote reposity
     let newVersionStr = `versionCode=${versionCode}\nversionName=${versionName}`;
@@ -78,27 +142,128 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
       versionCode,
       versionName,
       newVersionBase64,
-      sha
+      sha,
+      "master"
     );
 
     // STEP 4: create new branch
     // TODO: change folder value on prod
     const branch = `v${versionName}`;
-    const creationRes = await createBranch(`${GIT_FOLDER}/${branch}`, updateSHA);
+    const creationRes = await createBranch(
+      `${GIT_RELEASE_PROD_FOLDER}/${branch}`,
+      updateSHA
+    );
 
     // STEP 5: crate tag
     await createReleaseTag(branch, creationRes.object);
 
-    await dispatchMessageToSlack(
-      `release success! \n versionCode: \`${currentVersion.versionCode}\` -> \`${versionCode}\` \n versionName: \`v${currentVersion.versionName}\` -> \`v${versionName}\` \n tags: \`v${versionName}\``
-    );
-    return res.status(200).json({ message: "OK" });
+    return {
+      oldVersionCode: currentVersion.versionCode,
+      oldVersionName: currentVersion.versionName,
+      newVersionCode: versionCode,
+      newVersionName: versionName
+    };
   } catch (err) {
-    console.log("ERROR_API_PROGRESS:", err.message || "main threat error");
-    await dispatchMessageToSlack(err.message || "Error");
-    return res.status(500).json({ message: err.message });
+    console.log("ERROR_PRODUCT_PROGRESS:", err.message || "main threat error");
+    throw new Error("Release production failed");
   }
-});
+};
+
+const releaseDev = async (versioning) => {
+  try {
+    // STEP 1: get currcent version and up verison, get new SHA
+    const { content, sha } = await getCurrentVersion("develop");
+    const currentVersion = decodeBase64(content);
+
+    console.log({ currentVersion });
+    // STEP 2: increase current version
+    let { versionCode, versionName } = increaseVersion(
+      versioning,
+      currentVersion.versionCode,
+      currentVersion.versionName
+    );
+
+    console.log({ versionCode, versionName });
+
+    // STEP 3: update version content of version file in remote reposity
+    let newVersionStr = `versionCode=${versionCode}\nversionName=${versionName}`;
+    let newVersionBase64 = encodeBase64(newVersionStr);
+    await updateVersionFileContent(
+      versionCode,
+      versionName,
+      newVersionBase64,
+      sha,
+      "develop"
+    );
+
+    return {
+      oldVersionCode: currentVersion.versionCode,
+      oldVersionName: currentVersion.versionName,
+      newVersionCode: versionCode,
+      newVersionName: versionName
+    };
+  } catch (err) {
+    console.log("ERROR_DEV_PROGRESS:", err.message || "main threat error");
+    throw new Error("Release dev failed");
+  }
+};
+
+const releaseStg = async (versioning) => {
+  try {
+    // STEP 1: get currcent version and up verison, get new SHA
+    const { content, sha } = await getCurrentVersion("develop");
+    const currentVersion = decodeBase64(content);
+
+    console.log({ currentVersion });
+    // STEP 2: increase current version
+    let { versionCode, versionName } = increaseVersion(
+      versioning,
+      currentVersion.versionCode,
+      currentVersion.versionName
+    );
+
+    console.log({ versionCode, versionName });
+
+    // STEP 3: update version content of version file in remote reposity
+    let newVersionStr = `versionCode=${versionCode}\nversionName=${versionName}`;
+    let newVersionBase64 = encodeBase64(newVersionStr);
+    let updateSHA = await updateVersionFileContent(
+      versionCode,
+      versionName,
+      newVersionBase64,
+      sha,
+      "develop"
+    );
+
+    // STEP 4: create new branch
+    // TODO: change folder value on prod
+    const branch = `v${versionName}_${getReleaseTime()}`;
+    const creationRes = await createBranch(
+      `${GIT_RELEASE_STG_FOLDER}/${branch}`,
+      updateSHA
+    );
+
+    return {
+      oldVersionCode: currentVersion.versionCode,
+      oldVersionName: currentVersion.versionName,
+      newVersionCode: versionCode,
+      newVersionName: versionName
+    };
+  } catch (err) {
+    console.log("ERROR_DEV_PROGRESS:", err.message || "main threat error");
+    throw new Error("Release staging failed");
+  }
+};
+
+/**
+ * return release time ad format YYYYMMddHHmmss
+ */
+const getReleaseTime = () => {
+  const now = new Date();
+  return `${now.getFullYear()}${
+    now.getMonth() + 1
+  }${now.getDate()}${now.getHours()}${now.getMinutes()}${now.getSeconds()}`;
+};
 
 /**
  * convert base64 string to data string
@@ -118,116 +283,39 @@ const encodeBase64 = (data) => {
 };
 
 /**
- *
- * @param {*} versionCode
- * @param {*} versionName
- * @param {*} base64Content
- * @param {*} currentSha
+ * throw Erorr input param is not valid
+ * @param {*} command
  */
-const updateVersionFileContent = async (
-  versionCode,
-  versionName,
-  base64Content,
-  currentSha
-) => {
-  try {
-    const response = await octokit.request(
-      `PUT /repos/{owner}/{repo}/${GIT_VERSION_FILE_REF}`,
-      {
-        owner: GIT_OWNER,
-        repo: GIT_REPO,
-        message: `SLACK BOT increased versionCode to ${versionCode}, versionName to ${versionName}`,
-        content: `${base64Content}`,
-        sha: `${currentSha}`,
-        branch: "master"
-      }
-    );
-    console.log("=======UPDATE_VERSION_FILE=======");
-    console.log({ response });
-    return response.data.commit.sha;
-  } catch (err) {
-    console.log(err);
-    throw new Error("Could not update version file");
+const checkCommand = (command) => {
+  switch (command) {
+    case ANDROID_PROD_RELEASE:
+      break;
+    case ANDROID_PROD_RELEASE_PATCH:
+      break;
+    case ANDROID_PROD_RELEASE_MAJOR:
+      break;
+    case ANDROID_PROD_RELEASE_MINOR:
+      break;
+    case ANDROID_DEV_RELEASE:
+      break;
+    case ANDROID_DEV_RELEASE_PATCH:
+      break;
+    case ANDROID_DEV_RELEASE_MAJOR:
+      break;
+    case ANDROID_DEV_RELEASE_MINOR:
+      break;
+    case ANDROID_STG_RELEASE:
+      break;
+    case ANDROID_STG_RELEASE_PATCH:
+      break;
+    case ANDROID_STG_RELEASE_MAJOR:
+      break;
+    case ANDROID_STG_RELEASE_MINOR:
+      break;
+    default:
+      throw new Error("command is not valid");
   }
-};
-
-/**
- *
- * @param {*} tag
- * @param {*} sha
- */
-const createReleaseTag = async (tag, object) => {
-  try {
-    const response = await octokit.request(
-      "POST /repos/{owner}/{repo}/git/refs",
-      {
-        owner: GIT_OWNER,
-        repo: GIT_REPO,
-        ref: `refs/tags/${tag}`,
-        sha: object.sha
-      }
-    );
-    console.log("=====CREATE_RELEASE_TAG======");
-    console.log({ response });
-  } catch (err) {
-    console.log("ERROR_CREATE_RELEASE_TAG:", err);
-    throw new Error("Create tag failure");
-  }
-};
-
-/**
- *
- * @param {*} newBranchName new branch's name, example test/ABC
- * @param {*} sha
- * @return object contains info of created branch
- * @return {*} a new sha commit after creating new branch
- */
-const createBranch = async (newBranchName, sha) => {
-  if (!newBranchName || !sha) {
-    throw new Error("branch name or sha is required");
-  }
-
-  try {
-    const data = await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
-      owner: GIT_OWNER,
-      repo: GIT_REPO,
-      ref: `refs/heads/${newBranchName}`,
-      sha: `${sha}`
-    });
-
-    console.log("=====CREATE_RELEASE_BRANCH======");
-    console.log({ data });
-    return data.data;
-  } catch (err) {
-    console.error("ERROR_CREATE_BRANCH:", err);
-    throw err;
-  }
-};
-/**
- * @return base64 string of version content
- * @return current SHA
- */
-const getCurrentVersion = async () => {
-  let currentVersion;
-  try {
-    const data = await octokit.request(
-      `GET /repos/{owner}/{repo}/${GIT_VERSION_FILE_REF}?ref=master`,
-      {
-        owner: GIT_OWNER,
-        repo: GIT_REPO
-      }
-    );
-    console.log("=======GET_CURRENT_VERSION======");
-    console.log({ data });
-    const { content, sha } = data.data;
-    currentVersion = decodeBase64(content);
-    return { currentVersion, sha };
-  } catch (err) {
-    console.error("ERROR_GET_CURRENT_VERSION:", err.message);
-    throw new Error(
-      `Could not get version file from reposity due to github token was destroyed or other reason`
-    );
-  }
+  console.log("Cammand is OK");
 };
 
 /**
@@ -237,10 +325,11 @@ const getCurrentVersion = async () => {
  * @param {*} versioning
  * @return { versionCode, versionName }
  */
-const increaseVersion = (command, versionCode, versionName) => {
+const increaseVersion = (versioning, versionCode, versionName) => {
   let [major, minor, patch] = versionName.split(".");
-  switch (command) {
-    case ANDROID_RELEASE:
+  console.log({ versioning });
+  switch (versioning) {
+    case ANDROID_RELEASE_DEFAULT:
       patch = +patch + 1;
       break;
     case ANDROID_RELEASE_PATCH:
@@ -255,36 +344,10 @@ const increaseVersion = (command, versionCode, versionName) => {
       minor = 0;
       patch = 0;
       break;
-    default:
-      throw new Error("Please send a valid command");
   }
   versionName = `${major}.${minor}.${patch}`;
   versionCode = +versionCode + 1;
   return { versionCode, versionName };
-};
-
-/**
- * send a message to slack chanel
- * @param {*} message : message to dispatch
- */
-const dispatchMessageToSlack = async (message = "unknown error") => {
-  console.log("DISPATCH_MESSAGE:", message);
-  try {
-    let body = {
-      text: `${message}`
-    };
-    await fetch(`${SLACK_MESSAGE_HOOK}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-  } catch (err) {
-    console.log({ SLACK_MESSAGE_SENDING_ERROR: err.message });
-  }
-
-  return true;
 };
 
 module.exports = app;
