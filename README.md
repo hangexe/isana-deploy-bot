@@ -28,3 +28,8 @@ npm start
 6. run: `git add .`
 7. run: `git commit -m 'init'`
 8. run: `git push heroku master`
+
+
+## heroku server
+
+https://git.heroku.com/android-deploy-bot.git
