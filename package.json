@@ -1,5 +1,5 @@
 {
-  "name": "slack-hook",
+  "name": "isana-deploy-bot",
   "version": "0.0.0",
   "private": true,
   "scripts": {
