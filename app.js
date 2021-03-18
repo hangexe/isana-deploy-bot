@@ -81,6 +81,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
 
     let version;
     let releasedEnvironemnt = "";
+    let successMsg = "";
 
     if (command.indexOf(PROD) >= 0) {
       version = await releaseProduction(versioning);
@@ -97,15 +98,20 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
       oldVersionCode,
       oldVersionName,
       newVersionCode,
-      newVersionName
+      newVersionName,
+      newBranch,
     } = version;
 
-    let successMsg = `\n
+    successMsg = `\n
     *${releasedEnvironemnt.toUpperCase()}* releases success!\n
     versionCode: \`${oldVersionCode}\` -> \`${newVersionCode}\`\n
-    versionName: \`v${oldVersionName}\` -> \`v${newVersionName}\`\n`;
+    versionName: \`v${oldVersionName}\` -> \`v${newVersionName}\``;
+    if (!command.indexOf(DEV) >= 0) {
+      successMsg = `${successMsg}\nnew branch: ${newBranch}`
+    }
     if (command.indexOf(PROD) >= 0) {
-      successMsg = successMsg + `tags: \`v${newVersionName}\``;
+      successMsg = `${successMsg}\n
+      tags: \`v${newVersionName}\``;
     }
 
     await dispatchMessageToSlack(successMsg);
@@ -161,7 +167,8 @@ const releaseProduction = async (versioning) => {
       oldVersionCode: currentVersion.versionCode,
       oldVersionName: currentVersion.versionName,
       newVersionCode: versionCode,
-      newVersionName: versionName
+      newVersionName: versionName,
+      newBranch: branch
     };
   } catch (err) {
     console.log("ERROR_PRODUCT_PROGRESS:", err.message || "main threat error");
@@ -200,7 +207,8 @@ const releaseDev = async (versioning) => {
       oldVersionCode: currentVersion.versionCode,
       oldVersionName: currentVersion.versionName,
       newVersionCode: versionCode,
-      newVersionName: versionName
+      newVersionName: versionName,
+      newBranch: ""
     };
   } catch (err) {
     console.log("ERROR_DEV_PROGRESS:", err.message || "main threat error");
@@ -247,7 +255,8 @@ const releaseStg = async (versioning) => {
       oldVersionCode: currentVersion.versionCode,
       oldVersionName: currentVersion.versionName,
       newVersionCode: versionCode,
-      newVersionName: versionName
+      newVersionName: versionName,
+      newBranch: branch
     };
   } catch (err) {
     console.log("ERROR_DEV_PROGRESS:", err.message || "main threat error");
