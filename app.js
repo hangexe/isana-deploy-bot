@@ -114,7 +114,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   } catch (err) {
     console.log("ERROR_API_PROGRESS:", err.message || "main threat error");
     await dispatchMessageToSlack(err.message || "Error");
-    return res.status(500).json({ message: err.message });
+    return res.json({ message: err.message });
   }
 });
 
