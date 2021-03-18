@@ -102,11 +102,12 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
       newBranch,
     } = version;
 
-    successMsg = `\n
+    successMsg = 
+    `\n
     *${releasedEnvironemnt.toUpperCase()}* releases success!\n
     versionCode: \`${oldVersionCode}\` -> \`${newVersionCode}\`\n
     versionName: \`v${oldVersionName}\` -> \`v${newVersionName}\``;
-    if (!command.indexOf(DEV) >= 0) {
+    if (command.indexOf(DEV) === -1) {
       successMsg = `${successMsg}\nnew branch: ${newBranch}`
     }
     if (command.indexOf(PROD) >= 0) {
