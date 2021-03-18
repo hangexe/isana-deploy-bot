@@ -81,7 +81,6 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
 
     let version;
     let releasedEnvironemnt = "";
-    let createdBranch = ""
     let successMsg = "";
 
     if (command.indexOf(PROD) >= 0) {
@@ -107,7 +106,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     *${releasedEnvironemnt.toUpperCase()}* releases success!\n
     versionCode: \`${oldVersionCode}\` -> \`${newVersionCode}\`\n
     versionName: \`v${oldVersionName}\` -> \`v${newVersionName}\``;
-    if (!command.indexOf(DEV)) {
+    if (!command.indexOf(DEV) >= 0) {
       successMsg = `${successMsg}\nnew branch: ${newBranch}`
     }
     if (command.indexOf(PROD) >= 0) {
@@ -208,7 +207,7 @@ const releaseDev = async (versioning) => {
       oldVersionCode: currentVersion.versionCode,
       oldVersionName: currentVersion.versionName,
       newVersionCode: versionCode,
-      newVersionName: versionName
+      newVersionName: versionName,
       newBranch: ""
     };
   } catch (err) {
