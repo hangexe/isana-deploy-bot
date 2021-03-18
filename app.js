@@ -103,16 +103,14 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
     } = version;
 
     successMsg = 
-    `\n
-    *${releasedEnvironemnt.toUpperCase()}* releases success!\n
-    versionCode: \`${oldVersionCode}\` -> \`${newVersionCode}\`\n
-    versionName: \`v${oldVersionName}\` -> \`v${newVersionName}\``;
+    `\n*${releasedEnvironemnt.toUpperCase()}* releases success!` +
+    `\nversionCode: \`${oldVersionCode}\` -> \`${newVersionCode}\`` +
+    `\nversionName: \`v${oldVersionName}\` -> \`v${newVersionName}\``;
     if (command.indexOf(DEV) === -1) {
-      successMsg = `${successMsg}\nnew branch: ${newBranch}`
+      successMsg = `${successMsg}\nnew branch: \`${newBranch}\``
     }
     if (command.indexOf(PROD) >= 0) {
-      successMsg = `${successMsg}\n
-      tags: \`v${newVersionName}\``;
+      successMsg = `${successMsg}\ntags: \`v${newVersionName}\``;
     }
 
     await dispatchMessageToSlack(successMsg);
@@ -169,7 +167,7 @@ const releaseProduction = async (versioning) => {
       oldVersionName: currentVersion.versionName,
       newVersionCode: versionCode,
       newVersionName: versionName,
-      newBranch: branch
+      newBranch: `${GIT_RELEASE_PROD_FOLDER}/${branch}`
     };
   } catch (err) {
     console.log("ERROR_PRODUCT_PROGRESS:", err.message || "main threat error");
@@ -247,7 +245,7 @@ const releaseStg = async (versioning) => {
     // STEP 4: create new branch
     // TODO: change folder value on prod
     const branch = `v${versionName}_${getReleaseTime()}`;
-    const creationRes = await createBranch(
+    await createBranch(
       `${GIT_RELEASE_STG_FOLDER}/${branch}`,
       updateSHA
     );
@@ -257,7 +255,7 @@ const releaseStg = async (versioning) => {
       oldVersionName: currentVersion.versionName,
       newVersionCode: versionCode,
       newVersionName: versionName,
-      newBranch: branch
+      newBranch: `${GIT_RELEASE_STG_FOLDER}/${branch}`
     };
   } catch (err) {
     console.log("ERROR_DEV_PROGRESS:", err.message || "main threat error");
