@@ -70,7 +70,7 @@ app.post("/api/deploy-isana-android", async (req, res, next) => {
   // TODO: làm cái validate
   // validCommandPattern = /^(\<\@)([A-Z0-9]{11})(\>)/
 
-  command = command.replace(txtPattern, "").trim();
+  command = command.replace(txtPattern, "").trim().toLowerCase();
   versioning = command.toString().split(" ");
   versioning = versioning[versioning.length - 1];
 
